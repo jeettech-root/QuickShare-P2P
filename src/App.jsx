@@ -131,7 +131,16 @@ function App() {
   const answerCall = () => {
     setCallAccepted(true);
     setConnectionStatus("Connecting...");
-    const peer = new Peer({ initiator: false, trickle: false });
+    const peer = new Peer({
+        initiator: false,
+        trickle: false,
+        config: { 
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ] 
+        }
+    });
 
     peer.on("signal", (data) => {
         socket.emit("answerCall", { signal: data, to: caller });
@@ -139,12 +148,10 @@ function App() {
 
     peer.on("connect", () => setConnectionStatus("Connected"));
     peer.on("data", handleDataReceive);
-    peer.on("close", () => { setConnectionStatus("Disconnected"); triggerGlitch(); });
-    peer.on("error", () => { setConnectionStatus("Error"); triggerGlitch(); });
-
+    
     peer.signal(callerSignal);
     connectionRef.current = peer;
-  };
+};
 
   const handleDataReceive = (data) => {
     let str = "";
