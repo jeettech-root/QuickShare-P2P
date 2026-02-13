@@ -8,7 +8,8 @@ import "./App.css";
 // Required for simple-peer to handle file buffers in the browser
 window.Buffer = window.Buffer || Buffer;
 
-// This URL must match your Render backend exactly
+// 1. UPDATE THIS: Use your actual production URL to avoid Vercel login errors
+const PRODUCTION_URL = "https://quick-share-p2-p.vercel.app";
 const SERVER_URL = 'https://p2p-backend-3vl9.onrender.com'; 
 const socket = io.connect(SERVER_URL); 
 
@@ -60,7 +61,6 @@ function App() {
     const autoCallId = params.get("call");
     if (autoCallId) setIdToCall(autoCallId);
 
-    // Listen for the unique 4-character ID from the backend
     socket.on("me", (id) => {
         setMe(id);
         setConnectionStatus("Awaiting Connection");
@@ -93,12 +93,12 @@ function App() {
     return () => clearInterval(interval);
   }, [callAccepted]);
 
+  // 2. STABILIZED: Added iceServers to bypass firewalls
   const callUser = (id) => {
     setConnectionStatus("Calling...");
     const peer = new Peer({
         initiator: true,
         trickle: false,
-        // ADD THIS: STUN servers help bypass firewalls
         config: { 
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -113,7 +113,6 @@ function App() {
 
     peer.on("connect", () => setConnectionStatus("Connected"));
     peer.on("data", handleDataReceive);
-    // Add a more descriptive error log for your lab
     peer.on("error", (err) => {
         console.error("P2P Error:", err);
         setConnectionStatus("Disconnected");
@@ -126,7 +125,7 @@ function App() {
     });
 
     connectionRef.current = peer;
-};
+  };
 
   const answerCall = () => {
     setCallAccepted(true);
@@ -151,7 +150,7 @@ function App() {
     
     peer.signal(callerSignal);
     connectionRef.current = peer;
-};
+  };
 
   const handleDataReceive = (data) => {
     let str = "";
@@ -194,7 +193,7 @@ function App() {
     const reader = new FileReader();
     reader.onload = () => {
       const buffer = Buffer.from(reader.result);
-      const chunkSize = 16 * 1024; // 16KB chunks
+      const chunkSize = 16 * 1024; 
       let offset = 0;
       
       while (offset < buffer.length) {
@@ -207,15 +206,13 @@ function App() {
     reader.readAsArrayBuffer(file);
   };
 
-  // Logic to create a link that automatically calls this device ID
-  const currentUrl = window.location.href.split('?')[0]; 
-  const magicLink = `${currentUrl}?call=${me}`;
+  // 3. FIXED: Hardcoded production URL for the QR magic link
+  const magicLink = `${PRODUCTION_URL}?call=${me}`;
 
   return (
     <div className="app-wrapper" data-theme={theme}>
       <div className={`container ${glitch ? "glitch-active" : ""}`}>
         
-        {/* TOP ICONS SECTION */}
         <div className="top-nav">
             <button className="theme-toggle" onClick={() => setShowPrivacy(!showPrivacy)}>
               <span>🛡️</span>
@@ -225,7 +222,6 @@ function App() {
             </button>
         </div>
 
-        {/* PRIVACY MODAL */}
         {showPrivacy && (
             <div className="card privacy-modal">
                 <h3>🔒 Zero-Knowledge</h3>
@@ -247,7 +243,6 @@ function App() {
             Status: {connectionStatus}
         </div>
 
-        {/* DISCOVERY RADAR SECTION */}
         {!callAccepted && (
           <div className="card radar-card">
               <h3>Discovery Mode</h3>
@@ -257,11 +252,7 @@ function App() {
                   <div className="radar-ring"></div>
                   <div className="radar-beam"></div>
                   <div className="radar-content">
-                      <QRCode 
-                          value={magicLink} 
-                          size={120} 
-                          fgColor={theme === "dark" ? "#1e1b4b" : "#0f172a"}
-                      />
+                      <QRCode value={magicLink} size={120} fgColor={theme === "dark" ? "#1e1b4b" : "#0f172a"} />
                   </div>
               </div>
               <div className="device-info">
@@ -316,7 +307,6 @@ function App() {
                         {transferProgress > 0 && transferProgress < 100 ? "Transferring..." : "Send Now"}
                     </button>
                     
-                    {/* LIQUID PROGRESS UI */}
                     {transferProgress > 0 && (
                         <div className={`liquid-container ${transferProgress === 100 ? "liquid-success" : ""}`}>
                             <div className="progress-text">
@@ -347,7 +337,6 @@ function App() {
                 </div>
             )}
         </div>
-
       </div>
     </div>
   );
