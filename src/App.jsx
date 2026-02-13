@@ -8,29 +8,12 @@ import "./App.css";
 // Required for simple-peer to handle file buffers in the browser
 window.Buffer = window.Buffer || Buffer;
 
-// 1. UPDATE THIS: Use your actual production URL to avoid Vercel login errors
+// 1. Production URL Configuration
 const PRODUCTION_URL = "https://quick-share-p2-p.vercel.app";
 const SERVER_URL = 'https://p2p-backend-3vl9.onrender.com'; 
 const socket = io.connect(SERVER_URL); 
 
 function App() {
-  // Add this configuration object at the top of your component or inside the functions
-const peerConfiguration = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-    ]
-};
-
-// Inside callUser and answerCall, update your Peer initialization:
-const peer = new Peer({
-    initiator: true, // or false for answerCall
-    trickle: false,
-    config: peerConfiguration // This tells the browser how to bypass the firewall
-});
   const [me, setMe] = useState("");
   const [receivingCall, setReceivingCall] = useState(false);
   const [caller, setCaller] = useState("");
@@ -57,6 +40,17 @@ const peer = new Peer({
   const fileChunksRef = useRef([]); 
   const fileMetaRef = useRef(null); 
   const chatEndRef = useRef(null);
+
+  // STUN Servers to bypass firewalls and fix the "Disconnected" bug
+  const peerConfiguration = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+    ]
+  };
 
   const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 
@@ -100,7 +94,6 @@ const peer = new Peer({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
 
-  // Keep-alive ping to prevent connection drops
   useEffect(() => {
     const interval = setInterval(() => {
       if (connectionRef.current?.connected && !connectionRef.current?.destroyed) {
@@ -110,18 +103,12 @@ const peer = new Peer({
     return () => clearInterval(interval);
   }, [callAccepted]);
 
-  // 2. STABILIZED: Added iceServers to bypass firewalls
   const callUser = (id) => {
     setConnectionStatus("Calling...");
     const peer = new Peer({
         initiator: true,
         trickle: false,
-        config: { 
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ] 
-        }
+        config: peerConfiguration
     });
 
     peer.on("signal", (data) => {
@@ -150,12 +137,7 @@ const peer = new Peer({
     const peer = new Peer({
         initiator: false,
         trickle: false,
-        config: { 
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ] 
-        }
+        config: peerConfiguration
     });
 
     peer.on("signal", (data) => {
@@ -223,7 +205,6 @@ const peer = new Peer({
     reader.readAsArrayBuffer(file);
   };
 
-  // 3. FIXED: Hardcoded production URL for the QR magic link
   const magicLink = `${PRODUCTION_URL}?call=${me}`;
 
   return (
