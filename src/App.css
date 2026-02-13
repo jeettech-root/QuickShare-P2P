@@ -1,0 +1,338 @@
+/* client/src/App.css */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap');
+
+/* --- 1. THEME VARIABLES --- */
+:root {
+  /* Default (Dark/Neon Mode) - NEW GRADIENT */
+  --bg-gradient: linear-gradient(135deg, #13151a 0%, #1e1b4b 50%, #312e81 100%);
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  --text-main: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --card-bg: rgba(15, 23, 42, 0.6);
+  --primary: #8b5cf6;
+  --accent: #06b6d4;
+  --input-bg: rgba(0, 0, 0, 0.3);
+  --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] {
+  /* Light/Frost Mode */
+  --bg-gradient: linear-gradient(-45deg, #e0f2fe, #f0f9ff, #dbeafe, #eff6ff);
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.8);
+  --text-main: #1e293b;
+  --text-secondary: #475569;
+  --card-bg: rgba(255, 255, 255, 0.5);
+  --primary: #4f46e5;
+  --accent: #0ea5e9;
+  --input-bg: rgba(255, 255, 255, 0.8);
+  --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+}
+
+/* --- 2. LAYOUT & ANIMATION --- */
+body {
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg-gradient);
+  background-size: 200% 200%; /* Reduced size for smoother movement */
+  animation: gradientBG 15s ease infinite;
+  min-height: 100vh;
+  color: var(--text-main);
+  transition: color 0.5s ease, background 0.5s ease; /* Added background transition */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.app-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.container {
+  width: 100%;
+  max-width: 450px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+}
+
+/* --- 3. UI COMPONENTS --- */
+.header {
+  text-align: center;
+  margin-bottom: 10px;
+}
+.header h1 { font-size: 2.2rem; margin-bottom: 5px; text-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+.header p { opacity: 0.9; font-weight: 300; font-size: 1.1rem; } /* Made slightly larger and brighter */
+
+.card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 24px;
+  padding: 24px;
+  border: var(--glass-border);
+  box-shadow: var(--shadow);
+  transition: transform 0.3s, box-shadow 0.3s;
+  text-align: center;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.qr-container {
+    background: white;
+    padding: 15px;
+    border-radius: 20px;
+    display: inline-block;
+    margin: 10px 0;
+    transition: transform 0.3s;
+}
+.qr-container:hover { transform: scale(1.05) rotate(2deg); }
+
+/* --- 4. INPUTS & BUTTONS --- */
+input, textarea {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--input-bg);
+  color: var(--text-main);
+  outline: none;
+  font-family: inherit;
+  transition: 0.3s;
+  box-sizing: border-box;
+  margin-top: 10px;
+  resize: none; /* Prevents resizing of textarea */
+}
+input:focus, textarea:focus { border-color: var(--primary); background: transparent; }
+
+button.btn-primary {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: transform 0.2s, opacity 0.2s;
+  font-size: 1rem;
+}
+button.btn-primary:hover { opacity: 0.9; transform: scale(1.02); }
+
+button.theme-toggle {
+    background: var(--glass-bg);
+    border: var(--glass-border);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: 0.3s;
+}
+button.theme-toggle:hover { transform: scale(1.1); background: var(--primary); }
+
+/* --- 5. ANIMATIONS (Glitch & Slide) --- */
+.glitch-active {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  border: 2px solid #ef4444 !important; 
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- 6. UTILS --- */
+.status-bar {
+    padding: 10px;
+    border-radius: 10px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.file-upload-wrapper {
+    position: relative;
+    border: 2px dashed var(--text-secondary);
+    border-radius: 15px;
+    padding: 30px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.file-upload-wrapper:hover { border-color: var(--primary); background: rgba(139, 92, 246, 0.1); }
+/* --- UPDATED ICON BUTTONS --- */
+.theme-toggle {
+    background: var(--glass-bg);
+    border: var(--glass-border);
+    border-radius: 12px; /* Square with soft corners looks better than circles */
+    width: 48px;
+    height: 48px;
+    cursor: pointer;
+    font-size: 1.4rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.theme-toggle:hover {
+    transform: translateY(-3px) scale(1.1);
+    background: var(--primary);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+}
+
+.theme-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Ensure icons are centered perfectly */
+.theme-toggle span {
+    display: block;
+    line-height: 1;
+}
+/* --- DISCOVERY RADAR ANIMATIONS --- */
+.radar-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 20px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* The Pulsing Rings */
+.radar-ring {
+    position: absolute;
+    border: 2px solid var(--primary);
+    border-radius: 50%;
+    opacity: 0;
+    animation: radarPulse 4s infinite;
+}
+
+.radar-ring:nth-child(2) { animation-delay: 1s; }
+.radar-ring:nth-child(3) { animation-delay: 2s; }
+
+@keyframes radarPulse {
+    0% { width: 0; height: 0; opacity: 0.8; }
+    100% { width: 250px; height: 250px; opacity: 0; }
+}
+
+/* The Rotating Beam */
+.radar-beam {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0%, rgba(139, 92, 246, 0.2) 50%, var(--primary) 100%);
+    animation: radarRotate 3s linear infinite;
+    z-index: 1;
+}
+
+@keyframes radarRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* The QR Code inside the Radar */
+.radar-content {
+    position: relative;
+    z-index: 5;
+    background: white;
+    padding: 10px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px var(--primary);
+}
+
+/* Light Mode adjustments for Radar */
+[data-theme="light"] .radar-beam {
+    background: conic-gradient(from 0deg, transparent 0%, rgba(14, 165, 233, 0.1) 50%, var(--accent) 100%);
+}
+[data-theme="light"] .radar-ring {
+    border-color: var(--accent);
+}
+/* --- LIQUID PROGRESS CONTAINER --- */
+.liquid-container {
+    width: 100%;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    margin-top: 15px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.liquid-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(to top, var(--primary), var(--accent));
+    transition: height 0.4s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+    z-index: 1;
+}
+
+/* The Wave Animation Effect */
+.liquid-fill::after {
+    content: "";
+    position: absolute;
+    top: -15px;
+    left: 0;
+    width: 200%;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 40%;
+    animation: liquidWave 3s linear infinite;
+}
+
+@keyframes liquidWave {
+    from { transform: translateX(0) rotate(0deg); }
+    to { transform: translateX(-50%) rotate(360deg); }
+}
+
+.progress-text {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: white;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+/* Success Glow at 100% */
+.liquid-success {
+    box-shadow: 0 0 20px #10b981;
+    border-color: #10b981;
+}
