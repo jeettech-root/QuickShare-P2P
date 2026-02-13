@@ -14,6 +14,23 @@ const SERVER_URL = 'https://p2p-backend-3vl9.onrender.com';
 const socket = io.connect(SERVER_URL); 
 
 function App() {
+  // Add this configuration object at the top of your component or inside the functions
+const peerConfiguration = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+    ]
+};
+
+// Inside callUser and answerCall, update your Peer initialization:
+const peer = new Peer({
+    initiator: true, // or false for answerCall
+    trickle: false,
+    config: peerConfiguration // This tells the browser how to bypass the firewall
+});
   const [me, setMe] = useState("");
   const [receivingCall, setReceivingCall] = useState(false);
   const [caller, setCaller] = useState("");
