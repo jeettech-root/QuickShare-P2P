@@ -95,16 +95,30 @@ function App() {
 
   const callUser = (id) => {
     setConnectionStatus("Calling...");
-    const peer = new Peer({ initiator: true, trickle: false });
-    
+    const peer = new Peer({
+        initiator: true,
+        trickle: false,
+        // ADD THIS: STUN servers help bypass firewalls
+        config: { 
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ] 
+        }
+    });
+
     peer.on("signal", (data) => {
         socket.emit("callUser", { userToCall: id, signalData: data, from: me, name: name });
     });
 
     peer.on("connect", () => setConnectionStatus("Connected"));
     peer.on("data", handleDataReceive);
-    peer.on("close", () => { setConnectionStatus("Disconnected"); triggerGlitch(); });
-    peer.on("error", () => { setConnectionStatus("Error"); triggerGlitch(); });
+    // Add a more descriptive error log for your lab
+    peer.on("error", (err) => {
+        console.error("P2P Error:", err);
+        setConnectionStatus("Disconnected");
+        triggerGlitch();
+    });
 
     socket.on("callAccepted", (signal) => {
         setCallAccepted(true);
@@ -112,7 +126,7 @@ function App() {
     });
 
     connectionRef.current = peer;
-  };
+};
 
   const answerCall = () => {
     setCallAccepted(true);
