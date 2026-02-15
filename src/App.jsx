@@ -14,7 +14,13 @@ window.Buffer = window.Buffer || Buffer;
 const SERVER_URL = window.location.protocol === 'http:'
     ? `http://${window.location.hostname}:5000`
     : 'https://p2p-backend-3vl9.onrender.com';
-const socket = io.connect(SERVER_URL);
+
+// FORCE WEBSOCKETS to avoid polling issues
+const socket = io.connect(SERVER_URL, {
+    transports: ['websocket'],
+    reconnectionAttempts: 5,
+    timeout: 20000
+});
 
 function App() {
     const [me, setMe] = useState("");
@@ -59,18 +65,40 @@ function App() {
         setShowFeedback(false);
     };
 
+    const [gameLogs, setGameLogs] = useState([]);
+
+    const log = (txt) => {
+        setGameLogs(prev => [`[${new Date().toLocaleTimeString()}] ${txt}`, ...prev]);
+        console.log(txt);
+    };
+
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const autoCallId = params.get("call");
         if (autoCallId) setIdToCall(autoCallId);
 
-        // Listen for the unique 4-character ID from the backend
-        socket.on("me", (id) => {
-            setMe(id);
+        socket.on("connect", () => {
+            log(`✅ Connected to Backend (${socket.id})`);
             setConnectionStatus("Awaiting Connection");
         });
 
+        socket.on("connect_error", (err) => {
+            log(`❌ Socket Error: ${err.message}`);
+            setConnectionStatus("Socket Failure");
+        });
+
+        socket.on("disconnect", (reason) => {
+            log(`⚠️ Socket Disconnected: ${reason}`);
+            setConnectionStatus("Disconnected");
+        });
+
+        socket.on("me", (id) => {
+            setMe(id);
+            log(`🆔 My ID: ${id}`);
+        });
+
         socket.on("callUser", (data) => {
+            log(`📞 Incoming call from ${data.from}`);
             setReceivingCall(true);
             setCaller(data.from);
             setName(data.name);
@@ -80,6 +108,9 @@ function App() {
         return () => {
             socket.off("me");
             socket.off("callUser");
+            socket.off("connect");
+            socket.off("connect_error");
+            socket.off("disconnect");
         };
     }, []);
 
@@ -339,6 +370,17 @@ function App() {
                 </div>
 
             </div>
+
+            {/* DEBUG LOG SECTION */}
+            <div className="card log-card">
+                <h3>🛠️ Debug Logs</h3>
+                <div className="log-window">
+                    {gameLogs.map((l, i) => (
+                        <div key={i} className="log-entry">{l}</div>
+                    ))}
+                </div>
+            </div>
+
         </div>
     );
 }
