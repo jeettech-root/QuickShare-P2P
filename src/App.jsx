@@ -50,6 +50,9 @@ function App() {
     const fileMetaRef = useRef(null);
     const chatEndRef = useRef(null);
 
+    // Buffer for incoming signals (ICE candidates + Offer)
+    const signalBuffer = useRef([]);
+
     const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 
     const triggerGlitch = () => {
@@ -113,6 +116,12 @@ function App() {
             } else {
                 log(`🧊 Received ICE Candidate from ${data.from}`);
             }
+        });
+
+        socket.on("userUnavailable", (data) => {
+            log(`❌ User ${data.userToCall} is offline or ID changed.`);
+            alert(`Target user ${data.userToCall} not found. Please rescan QR code.`);
+            setConnectionStatus("Peer Not Found");
         });
 
         return () => {
