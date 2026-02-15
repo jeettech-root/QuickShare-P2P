@@ -8,336 +8,332 @@ import "./App.css";
 // Required for simple-peer to handle file buffers in the browser
 window.Buffer = window.Buffer || Buffer;
 
-// 1. Production URL Configuration
-const PRODUCTION_URL = "https://quick-share-p2-p.vercel.app";
-const SERVER_URL = 'https://p2p-backend-3vl9.onrender.com'; 
-const socket = io.connect(SERVER_URL); 
+// This URL must match your Render backend exactly
+// If running locally (http), assume backend is on port 5000 of the same host.
+// If running in production (https), use the Render backend.
+const SERVER_URL = window.location.protocol === 'http:'
+    ? `http://${window.location.hostname}:5000`
+    : 'https://p2p-backend-3vl9.onrender.com';
+const socket = io.connect(SERVER_URL);
 
 function App() {
-  const [me, setMe] = useState("");
-  const [receivingCall, setReceivingCall] = useState(false);
-  const [caller, setCaller] = useState("");
-  const [callerSignal, setCallerSignal] = useState(null);
-  const [callAccepted, setCallAccepted] = useState(false);
-  const [idToCall, setIdToCall] = useState("");
-  const [name, setName] = useState("");
-  const [connectionStatus, setConnectionStatus] = useState("Connecting...");
-  
-  const [file, setFile] = useState(null);
-  const [receivedFile, setReceivedFile] = useState(null);
-  const [downloadName, setDownloadName] = useState("");
-  const [transferProgress, setProgress] = useState(0);
-  const [msg, setMsg] = useState("");
-  const [chat, setChat] = useState([]);
+    const [me, setMe] = useState("");
+    const [receivingCall, setReceivingCall] = useState(false);
+    const [caller, setCaller] = useState("");
+    const [callerSignal, setCallerSignal] = useState(null);
+    const [callAccepted, setCallAccepted] = useState(false);
+    const [idToCall, setIdToCall] = useState("");
+    const [name, setName] = useState("");
+    const [connectionStatus, setConnectionStatus] = useState("Connecting...");
 
-  const [theme, setTheme] = useState("dark");
-  const [showPrivacy, setShowPrivacy] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [feedbackText, setFeedbackText] = useState("");
-  const [glitch, setGlitch] = useState(false); 
+    const [file, setFile] = useState(null);
+    const [receivedFile, setReceivedFile] = useState(null);
+    const [downloadName, setDownloadName] = useState("");
+    const [transferProgress, setProgress] = useState(0);
+    const [msg, setMsg] = useState("");
+    const [chat, setChat] = useState([]);
 
-  const connectionRef = useRef();
-  const fileChunksRef = useRef([]); 
-  const fileMetaRef = useRef(null); 
-  const chatEndRef = useRef(null);
+    const [theme, setTheme] = useState("dark");
+    const [showPrivacy, setShowPrivacy] = useState(false);
+    const [showFeedback, setShowFeedback] = useState(false);
+    const [feedbackText, setFeedbackText] = useState("");
+    const [glitch, setGlitch] = useState(false);
 
-  // STUN Servers to bypass firewalls and fix the "Disconnected" bug
-  const peerConfiguration = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-    ]
-  };
+    const connectionRef = useRef();
+    const fileChunksRef = useRef([]);
+    const fileMetaRef = useRef(null);
+    const chatEndRef = useRef(null);
 
-  const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+    const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 
-  const triggerGlitch = () => {
-    setGlitch(true);
-    setTimeout(() => setGlitch(false), 500); 
-  };
-
-  const submitFeedback = () => {
-    if(!feedbackText) return;
-    socket.emit("sendFeedback", feedbackText);
-    alert("Feedback received! We'll look into it.");
-    setFeedbackText("");
-    setShowFeedback(false);
-  };
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const autoCallId = params.get("call");
-    if (autoCallId) setIdToCall(autoCallId);
-
-    socket.on("me", (id) => {
-        setMe(id);
-        setConnectionStatus("Awaiting Connection");
-    });
-
-    socket.on("callUser", (data) => {
-      setReceivingCall(true);
-      setCaller(data.from);
-      setName(data.name);
-      setCallerSignal(data.signal);
-    });
-
-    return () => {
-        socket.off("me");
-        socket.off("callUser");
+    const triggerGlitch = () => {
+        setGlitch(true);
+        setTimeout(() => setGlitch(false), 500);
     };
-  }, []);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat]);
+    const submitFeedback = () => {
+        if (!feedbackText) return;
+        socket.emit("sendFeedback", feedbackText);
+        alert("Feedback received! We'll look into it.");
+        setFeedbackText("");
+        setShowFeedback(false);
+    };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (connectionRef.current?.connected && !connectionRef.current?.destroyed) {
-         try { connectionRef.current.send("ping"); } catch (e) {}
-      }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [callAccepted]);
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const autoCallId = params.get("call");
+        if (autoCallId) setIdToCall(autoCallId);
 
-  const callUser = (id) => {
-    setConnectionStatus("Calling...");
-    const peer = new Peer({
-        initiator: true,
-        trickle: false,
-        config: peerConfiguration
-    });
+        // Listen for the unique 4-character ID from the backend
+        socket.on("me", (id) => {
+            setMe(id);
+            setConnectionStatus("Awaiting Connection");
+        });
 
-    peer.on("signal", (data) => {
-        socket.emit("callUser", { userToCall: id, signalData: data, from: me, name: name });
-    });
+        socket.on("callUser", (data) => {
+            setReceivingCall(true);
+            setCaller(data.from);
+            setName(data.name);
+            setCallerSignal(data.signal);
+        });
 
-    peer.on("connect", () => setConnectionStatus("Connected"));
-    peer.on("data", handleDataReceive);
-    peer.on("error", (err) => {
-        console.error("P2P Error:", err);
-        setConnectionStatus("Disconnected");
-        triggerGlitch();
-    });
+        return () => {
+            socket.off("me");
+            socket.off("callUser");
+        };
+    }, []);
 
-    socket.on("callAccepted", (signal) => {
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [chat]);
+
+    // Keep-alive ping to prevent connection drops
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (connectionRef.current?.connected && !connectionRef.current?.destroyed) {
+                try { connectionRef.current.send("ping"); } catch (e) { }
+            }
+        }, 4000);
+        return () => clearInterval(interval);
+    }, [callAccepted]);
+
+    const callUser = (id) => {
+        setConnectionStatus("Calling...");
+        const peer = new Peer({ initiator: true, trickle: false });
+
+        peer.on("signal", (data) => {
+            socket.emit("callUser", { userToCall: id, signalData: data, from: me, name: name });
+        });
+
+        peer.on("connect", () => setConnectionStatus("Connected"));
+        peer.on("data", handleDataReceive);
+        peer.on("close", () => { setConnectionStatus("Disconnected"); triggerGlitch(); });
+        peer.on("error", () => { setConnectionStatus("Error"); triggerGlitch(); });
+
+        socket.on("callAccepted", (signal) => {
+            setCallAccepted(true);
+            peer.signal(signal);
+        });
+
+        connectionRef.current = peer;
+    };
+
+    const answerCall = () => {
         setCallAccepted(true);
-        peer.signal(signal);
-    });
+        setConnectionStatus("Connecting...");
+        const peer = new Peer({ initiator: false, trickle: false });
 
-    connectionRef.current = peer;
-  };
+        peer.on("signal", (data) => {
+            socket.emit("answerCall", { signal: data, to: caller });
+        });
 
-  const answerCall = () => {
-    setCallAccepted(true);
-    setConnectionStatus("Connecting...");
-    const peer = new Peer({
-        initiator: false,
-        trickle: false,
-        config: peerConfiguration
-    });
+        peer.on("connect", () => setConnectionStatus("Connected"));
+        peer.on("data", handleDataReceive);
+        peer.on("close", () => { setConnectionStatus("Disconnected"); triggerGlitch(); });
+        peer.on("error", () => { setConnectionStatus("Error"); triggerGlitch(); });
 
-    peer.on("signal", (data) => {
-        socket.emit("answerCall", { signal: data, to: caller });
-    });
-
-    peer.on("connect", () => setConnectionStatus("Connected"));
-    peer.on("data", handleDataReceive);
-    
-    peer.signal(callerSignal);
-    connectionRef.current = peer;
-  };
-
-  const handleDataReceive = (data) => {
-    let str = "";
-    try { str = data.toString(); } catch (e) { str = ""; }
-    if (str === "ping") return; 
-
-    if (str.startsWith('{"text":')) {
-        const payload = JSON.parse(str);
-        setChat((prev) => [...prev, { sender: "peer", text: payload.text }]);
-        return;
-    }
-    if (str === "file-end") {
-        const blob = new Blob(fileChunksRef.current, { type: fileMetaRef.current?.type });
-        setReceivedFile(URL.createObjectURL(blob));
-        setDownloadName(fileMetaRef.current?.name || "download");
-        setProgress(100);
-        fileChunksRef.current = [];
-        return;
-    }
-    if (str.includes('{"meta":')) {
-        const parsed = JSON.parse(str);
-        if (parsed.meta) { fileMetaRef.current = parsed.meta; return; }
-    }
-    fileChunksRef.current.push(data);
-  };
-
-  const sendText = () => {
-    if (!msg || !connectionRef.current) return;
-    try {
-        connectionRef.current.send(JSON.stringify({ text: msg }));
-        setChat((prev) => [...prev, { sender: "me", text: msg }]);
-        setMsg("");
-    } catch (err) { triggerGlitch(); alert("Connection lost!"); }
-  };
-
-  const sendFile = () => {
-    if (!file || !connectionRef.current) return;
-    connectionRef.current.send(JSON.stringify({ meta: { name: file.name, type: file.type } }));
-    
-    const reader = new FileReader();
-    reader.onload = () => {
-      const buffer = Buffer.from(reader.result);
-      const chunkSize = 16 * 1024; 
-      let offset = 0;
-      
-      while (offset < buffer.length) {
-          connectionRef.current.send(buffer.slice(offset, offset + chunkSize));
-          offset += chunkSize;
-          setProgress(Math.round((offset / buffer.length) * 100));
-      }
-      connectionRef.current.send("file-end");
+        peer.signal(callerSignal);
+        connectionRef.current = peer;
     };
-    reader.readAsArrayBuffer(file);
-  };
 
-  const magicLink = `${PRODUCTION_URL}?call=${me}`;
+    const handleDataReceive = (data) => {
+        let str = "";
+        try { str = data.toString(); } catch (e) { str = ""; }
+        if (str === "ping") return;
 
-  return (
-    <div className="app-wrapper" data-theme={theme}>
-      <div className={`container ${glitch ? "glitch-active" : ""}`}>
-        
-        <div className="top-nav">
-            <button className="theme-toggle" onClick={() => setShowPrivacy(!showPrivacy)}>
-              <span>🛡️</span>
-            </button>
-            <button className="theme-toggle" onClick={toggleTheme}>
-              <span>{theme === "dark" ? "☀️" : "🌙"}</span>
-            </button>
-        </div>
+        if (str.startsWith('{"text":')) {
+            const payload = JSON.parse(str);
+            setChat((prev) => [...prev, { sender: "peer", text: payload.text }]);
+            return;
+        }
+        if (str === "file-end") {
+            const blob = new Blob(fileChunksRef.current, { type: fileMetaRef.current?.type });
+            setReceivedFile(URL.createObjectURL(blob));
+            setDownloadName(fileMetaRef.current?.name || "download");
+            setProgress(100);
+            fileChunksRef.current = [];
+            return;
+        }
+        if (str.includes('{"meta":')) {
+            const parsed = JSON.parse(str);
+            if (parsed.meta) { fileMetaRef.current = parsed.meta; return; }
+        }
+        fileChunksRef.current.push(data);
+    };
 
-        {showPrivacy && (
-            <div className="card privacy-modal">
-                <h3>🔒 Zero-Knowledge</h3>
-                <ul className="privacy-list">
-                    <li><strong>Direct P2P:</strong> Files never touch servers.</li>
-                    <li><strong>No Database:</strong> We store zero logs.</li>
-                    <li><strong>RAM Only:</strong> Data vanishes on exit.</li>
-                </ul>
-                <button className="btn-primary" onClick={() => setShowPrivacy(false)}>Close</button>
-            </div>
-        )}
+    const sendText = () => {
+        if (!msg || !connectionRef.current) return;
+        try {
+            connectionRef.current.send(JSON.stringify({ text: msg }));
+            setChat((prev) => [...prev, { sender: "me", text: msg }]);
+            setMsg("");
+        } catch (err) { triggerGlitch(); alert("Connection lost!"); }
+    };
 
-        <div className="header">
-          <h1>⚡ QuickShare</h1>
-          <p>Secure Lab-to-Mobile Transfer</p>
-        </div>
-        
-        <div className="status-bar" data-status={connectionStatus}>
-            Status: {connectionStatus}
-        </div>
+    const sendFile = () => {
+        if (!file || !connectionRef.current) return;
+        connectionRef.current.send(JSON.stringify({ meta: { name: file.name, type: file.type } }));
 
-        {!callAccepted && (
-          <div className="card radar-card">
-              <h3>Discovery Mode</h3>
-              <div className="radar-container">
-                  <div className="radar-ring"></div>
-                  <div className="radar-ring"></div>
-                  <div className="radar-ring"></div>
-                  <div className="radar-beam"></div>
-                  <div className="radar-content">
-                      <QRCode value={magicLink} size={120} fgColor={theme === "dark" ? "#1e1b4b" : "#0f172a"} />
-                  </div>
-              </div>
-              <div className="device-info">
-                  <p>Device ID: <span className="id-text">{me}</span></p>
-                  <p className="sub-text">Searching for nearby peers...</p>
-              </div>
-          </div>
-        )}
+        const reader = new FileReader();
+        reader.onload = () => {
+            const buffer = Buffer.from(reader.result);
+            const chunkSize = 16 * 1024; // 16KB chunks
+            let offset = 0;
 
-        {!callAccepted && (
-            <div className="card">
-                <h3>Connect to Peer</h3>
-                <input type="text" placeholder="Enter ID..." value={idToCall} onChange={(e) => setIdToCall(e.target.value)} />
-                <button className="btn-primary" onClick={() => callUser(idToCall)}>Connect</button>
-            </div>
-        )}
+            while (offset < buffer.length) {
+                connectionRef.current.send(buffer.slice(offset, offset + chunkSize));
+                offset += chunkSize;
+                setProgress(Math.round((offset / buffer.length) * 100));
+            }
+            connectionRef.current.send("file-end");
+        };
+        reader.readAsArrayBuffer(file);
+    };
 
-        {receivingCall && !callAccepted && (
-            <div className="card incoming-call">
-                <h3>🔔 Incoming Connection...</h3>
-                <p>From ID: {caller}</p>
-                <button className="btn-primary" onClick={answerCall}>Accept</button>
-            </div>
-        )}
+    // Logic to create a link that automatically calls this device ID
+    const currentUrl = window.location.href.split('?')[0];
+    const magicLink = `${currentUrl}?call=${me}`;
 
-        {connectionStatus === "Connected" && (
-            <>
-                <div className="card chat-card">
-                    <h3>💬 Chat</h3>
-                    <div className="chat-window">
-                        {chat.map((c, i) => (
-                            <div key={i} className={`chat-bubble ${c.sender}`}>
-                                <span>{c.text}</span>
-                            </div>
-                        ))}
-                        <div ref={chatEndRef} />
-                    </div>
-                    <div className="chat-input-row">
-                        <input value={msg} onChange={e => setMsg(e.target.value)} placeholder="Type..." />
-                        <button className="btn-primary" onClick={sendText}>Send</button>
-                    </div>
+    return (
+        <div className="app-wrapper" data-theme={theme}>
+            <div className={`container ${glitch ? "glitch-active" : ""}`}>
+
+                {/* TOP ICONS SECTION */}
+                <div className="top-nav">
+                    <button className="theme-toggle" onClick={() => setShowPrivacy(!showPrivacy)}>
+                        <span>🛡️</span>
+                    </button>
+                    <button className="theme-toggle" onClick={toggleTheme}>
+                        <span>{theme === "dark" ? "☀️" : "🌙"}</span>
+                    </button>
                 </div>
 
-                <div className="card transfer-card">
-                    <h3>📁 Secure Transfer</h3>
-                    <div className="file-upload-wrapper">
-                        <input type="file" onChange={(e) => setFile(e.target.files[0])} className="file-input" />
-                        <p>{file ? file.name : "Tap to Select File"}</p>
+                {/* PRIVACY MODAL */}
+                {showPrivacy && (
+                    <div className="card privacy-modal">
+                        <h3>🔒 Zero-Knowledge</h3>
+                        <ul className="privacy-list">
+                            <li><strong>Direct P2P:</strong> Files never touch servers.</li>
+                            <li><strong>No Database:</strong> We store zero logs.</li>
+                            <li><strong>RAM Only:</strong> Data vanishes on exit.</li>
+                        </ul>
+                        <button className="btn-primary" onClick={() => setShowPrivacy(false)}>Close</button>
                     </div>
+                )}
 
-                    <button className="btn-primary" onClick={sendFile} disabled={!file}>
-                        {transferProgress > 0 && transferProgress < 100 ? "Transferring..." : "Send Now"}
-                    </button>
-                    
-                    {transferProgress > 0 && (
-                        <div className={`liquid-container ${transferProgress === 100 ? "liquid-success" : ""}`}>
-                            <div className="progress-text">
-                                {transferProgress === 100 ? "✓ Complete" : `${transferProgress}%`}
+                <div className="header">
+                    <h1>⚡ QuickShare</h1>
+                    <p>Secure Lab-to-Mobile Transfer</p>
+                </div>
+
+                <div className="status-bar" data-status={connectionStatus}>
+                    Status: {connectionStatus}
+                </div>
+
+                {/* DISCOVERY RADAR SECTION */}
+                {!callAccepted && (
+                    <div className="card radar-card">
+                        <h3>Discovery Mode</h3>
+                        <div className="radar-container">
+                            <div className="radar-ring"></div>
+                            <div className="radar-ring"></div>
+                            <div className="radar-ring"></div>
+                            <div className="radar-beam"></div>
+                            <div className="radar-content">
+                                <QRCode
+                                    value={magicLink}
+                                    size={120}
+                                    fgColor={theme === "dark" ? "#1e1b4b" : "#0f172a"}
+                                />
                             </div>
-                            <div className="liquid-fill" style={{ height: `${transferProgress}%` }}></div>
+                        </div>
+                        <div className="device-info">
+                            <p>Device ID: <span className="id-text">{me}</span></p>
+                            <p className="sub-text">Searching for nearby peers...</p>
+                        </div>
+                    </div>
+                )}
+
+                {!callAccepted && (
+                    <div className="card">
+                        <h3>Connect to Peer</h3>
+                        <input type="text" placeholder="Enter ID..." value={idToCall} onChange={(e) => setIdToCall(e.target.value)} />
+                        <button className="btn-primary" onClick={() => callUser(idToCall)}>Connect</button>
+                    </div>
+                )}
+
+                {receivingCall && !callAccepted && (
+                    <div className="card incoming-call">
+                        <h3>🔔 Incoming Connection...</h3>
+                        <p>From ID: {caller}</p>
+                        <button className="btn-primary" onClick={answerCall}>Accept</button>
+                    </div>
+                )}
+
+                {connectionStatus === "Connected" && (
+                    <>
+                        <div className="card chat-card">
+                            <h3>💬 Chat</h3>
+                            <div className="chat-window">
+                                {chat.map((c, i) => (
+                                    <div key={i} className={`chat-bubble ${c.sender}`}>
+                                        <span>{c.text}</span>
+                                    </div>
+                                ))}
+                                <div ref={chatEndRef} />
+                            </div>
+                            <div className="chat-input-row">
+                                <input value={msg} onChange={e => setMsg(e.target.value)} placeholder="Type..." />
+                                <button className="btn-primary" onClick={sendText}>Send</button>
+                            </div>
+                        </div>
+
+                        <div className="card transfer-card">
+                            <h3>📁 Secure Transfer</h3>
+                            <div className="file-upload-wrapper">
+                                <input type="file" onChange={(e) => setFile(e.target.files[0])} className="file-input" />
+                                <p>{file ? file.name : "Tap to Select File"}</p>
+                            </div>
+
+                            <button className="btn-primary" onClick={sendFile} disabled={!file}>
+                                {transferProgress > 0 && transferProgress < 100 ? "Transferring..." : "Send Now"}
+                            </button>
+
+                            {/* LIQUID PROGRESS UI */}
+                            {transferProgress > 0 && (
+                                <div className={`liquid-container ${transferProgress === 100 ? "liquid-success" : ""}`}>
+                                    <div className="progress-text">
+                                        {transferProgress === 100 ? "✓ Complete" : `${transferProgress}%`}
+                                    </div>
+                                    <div className="liquid-fill" style={{ height: `${transferProgress}%` }}></div>
+                                </div>
+                            )}
+
+                            {receivedFile && (
+                                <a href={receivedFile} download={downloadName} className="btn-download">
+                                    Download Received File
+                                </a>
+                            )}
+                        </div>
+                    </>
+                )}
+
+                <div className="feedback-section">
+                    <button className="glitch-btn" onClick={() => setShowFeedback(!showFeedback)}>
+                        Report a Glitch
+                    </button>
+                    {showFeedback && (
+                        <div className="card feedback-card">
+                            <h3>🐛 Report Issue</h3>
+                            <textarea rows={3} placeholder="Describe issue..." value={feedbackText} onChange={e => setFeedbackText(e.target.value)} />
+                            <button className="btn-primary" onClick={submitFeedback}>Submit</button>
                         </div>
                     )}
-                    
-                    {receivedFile && (
-                        <a href={receivedFile} download={downloadName} className="btn-download">
-                            Download Received File
-                        </a>
-                    )}
                 </div>
-            </>
-        )}
 
-        <div className="feedback-section">
-            <button className="glitch-btn" onClick={() => setShowFeedback(!showFeedback)}>
-                Report a Glitch
-            </button>
-            {showFeedback && (
-                <div className="card feedback-card">
-                    <h3>🐛 Report Issue</h3>
-                    <textarea rows={3} placeholder="Describe issue..." value={feedbackText} onChange={e => setFeedbackText(e.target.value)} />
-                    <button className="btn-primary" onClick={submitFeedback}>Submit</button>
-                </div>
-            )}
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 export default App;
