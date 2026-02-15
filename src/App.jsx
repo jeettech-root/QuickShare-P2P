@@ -98,11 +98,20 @@ function App() {
         });
 
         socket.on("callUser", (data) => {
-            log(`📞 Incoming call from ${data.from}`);
-            setReceivingCall(true);
-            setCaller(data.from);
-            setName(data.name);
-            setCallerSignal(data.signal);
+            // Buffer the signal (Offer + ICE Candidates)
+            signalBuffer.current.push(data.signal);
+
+            // Only alert user on the initial offer (avoid spamming specifically for candidates)
+            if (data.signal.type === "offer") {
+                log(`📞 Incoming call from ${data.from}`);
+                setReceivingCall(true);
+                setCaller(data.from);
+                setName(data.name);
+                // setCallerSignal is deprecated in favor of buffer, but keeping for UI logic if needed
+                setCallerSignal(data.signal);
+            } else {
+                log(`🧊 Received ICE Candidate from ${data.from}`);
+            }
         });
 
         return () => {
@@ -150,13 +159,15 @@ function App() {
         ]
     };
 
+    // Enable Trickle ICE for faster connections
     const callUser = (id) => {
-        log(`Strategy: Calling ${id}...`);
+        log(`Strategy: Calling ${id} (Trickle ICE)...`);
         setConnectionStatus("Calling...");
-        const peer = new Peer({ initiator: true, trickle: false, config: peerConfig });
+        // trickle: true allows sending candidates as they are found
+        const peer = new Peer({ initiator: true, trickle: true, config: peerConfig });
 
         peer.on("signal", (data) => {
-            log(`📡 Generated Signal (type: ${data.type})`);
+            log(`📡 Sending Signal (type: ${data.type || "candidate"})`);
             socket.emit("callUser", { userToCall: id, signalData: data, from: me, name: name });
         });
 
@@ -180,7 +191,7 @@ function App() {
         });
 
         socket.on("callAccepted", (signal) => {
-            log("✅ Call Accepted by remote");
+            log("✅ Signal Received from Remote");
             setCallAccepted(true);
             peer.signal(signal);
         });
@@ -189,13 +200,14 @@ function App() {
     };
 
     const answerCall = () => {
-        log("Strategy: Answering Call...");
+        log("Strategy: Answering Call (Trickle ICE)...");
         setCallAccepted(true);
         setConnectionStatus("Connecting...");
-        const peer = new Peer({ initiator: false, trickle: false, config: peerConfig });
+        const peer = new Peer({ initiator: false, trickle: true, config: peerConfig });
 
         peer.on("signal", (data) => {
-            log(`📡 Generated Answer Signal (type: ${data.type})`);
+            log(`📡 Sending Answer Signal (type: ${data.type || "candidate"})`);
+            // Send answer back to caller
             socket.emit("answerCall", { signal: data, to: caller });
         });
 
@@ -218,8 +230,18 @@ function App() {
             triggerGlitch();
         });
 
-        log("Processing Caller Signal...");
-        peer.signal(callerSignal);
+        // Process all buffered signals (Offer + Candidates)
+        log(`Processing ${signalBuffer.current.length} buffered signals...`);
+        signalBuffer.current.forEach(sig => peer.signal(sig));
+        signalBuffer.current = []; // Clear buffer
+
+        // Direct future signals to the peer
+        socket.off("callUser"); // Stop buffering from useEffect
+        socket.on("callUser", (data) => {
+            log(`📡 Received Late Signal (type: ${data.signal.type || "candidate"})`);
+            peer.signal(data.signal);
+        });
+
         connectionRef.current = peer;
     };
 
