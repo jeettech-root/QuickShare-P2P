@@ -136,19 +136,36 @@ function App() {
     };
 
     const callUser = (id) => {
+        log(`Strategy: Calling ${id}...`);
         setConnectionStatus("Calling...");
         const peer = new Peer({ initiator: true, trickle: false, config: peerConfig });
 
         peer.on("signal", (data) => {
+            log(`📡 Generated Signal (type: ${data.type})`);
             socket.emit("callUser", { userToCall: id, signalData: data, from: me, name: name });
         });
 
-        peer.on("connect", () => setConnectionStatus("Connected"));
+        peer.on("connect", () => {
+            log("🤝 P2P Connection Established!");
+            setConnectionStatus("Connected");
+        });
+
         peer.on("data", handleDataReceive);
-        peer.on("close", () => { setConnectionStatus("Disconnected"); triggerGlitch(); });
-        peer.on("error", () => { setConnectionStatus("Error"); triggerGlitch(); });
+
+        peer.on("close", () => {
+            log("❌ Peer Connection Closed");
+            setConnectionStatus("Disconnected");
+            triggerGlitch();
+        });
+
+        peer.on("error", (err) => {
+            log(`🚨 Peer Error: ${err.message || err}`);
+            setConnectionStatus("Error");
+            triggerGlitch();
+        });
 
         socket.on("callAccepted", (signal) => {
+            log("✅ Call Accepted by remote");
             setCallAccepted(true);
             peer.signal(signal);
         });
@@ -157,19 +174,36 @@ function App() {
     };
 
     const answerCall = () => {
+        log("Strategy: Answering Call...");
         setCallAccepted(true);
         setConnectionStatus("Connecting...");
         const peer = new Peer({ initiator: false, trickle: false, config: peerConfig });
 
         peer.on("signal", (data) => {
+            log(`📡 Generated Answer Signal (type: ${data.type})`);
             socket.emit("answerCall", { signal: data, to: caller });
         });
 
-        peer.on("connect", () => setConnectionStatus("Connected"));
-        peer.on("data", handleDataReceive);
-        peer.on("close", () => { setConnectionStatus("Disconnected"); triggerGlitch(); });
-        peer.on("error", () => { setConnectionStatus("Error"); triggerGlitch(); });
+        peer.on("connect", () => {
+            log("🤝 P2P Connection Established!");
+            setConnectionStatus("Connected");
+        });
 
+        peer.on("data", handleDataReceive);
+
+        peer.on("close", () => {
+            log("❌ Peer Connection Closed");
+            setConnectionStatus("Disconnected");
+            triggerGlitch();
+        });
+
+        peer.on("error", (err) => {
+            log(`🚨 Peer Error: ${err.message || err}`);
+            setConnectionStatus("Error");
+            triggerGlitch();
+        });
+
+        log("Processing Caller Signal...");
         peer.signal(callerSignal);
         connectionRef.current = peer;
     };
