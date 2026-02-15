@@ -101,14 +101,15 @@ function App() {
             // Buffer the signal (Offer + ICE Candidates)
             signalBuffer.current.push(data.signal);
 
-            // Only alert user on the initial offer (avoid spamming specifically for candidates)
-            if (data.signal.type === "offer") {
-                log(`📞 Incoming call from ${data.from}`);
+            // Trigger "Incoming Call" on standard Offer OR if it's the very first signal (fallback)
+            const isOffer = data.signal.type === "offer";
+            const isFirstSignal = signalBuffer.current.length === 1;
+
+            if (isOffer || isFirstSignal) {
+                log(`📞 Incoming call from ${data.from} (type: ${data.signal.type || 'unknown'})`);
                 setReceivingCall(true);
                 setCaller(data.from);
                 setName(data.name);
-                // setCallerSignal is deprecated in favor of buffer, but keeping for UI logic if needed
-                setCallerSignal(data.signal);
             } else {
                 log(`🧊 Received ICE Candidate from ${data.from}`);
             }
