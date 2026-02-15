@@ -97,9 +97,16 @@ function App() {
         return () => clearInterval(interval);
     }, [callAccepted]);
 
+    const peerConfig = {
+        iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:global.stun.twilio.com:3478" }
+        ]
+    };
+
     const callUser = (id) => {
         setConnectionStatus("Calling...");
-        const peer = new Peer({ initiator: true, trickle: false });
+        const peer = new Peer({ initiator: true, trickle: false, config: peerConfig });
 
         peer.on("signal", (data) => {
             socket.emit("callUser", { userToCall: id, signalData: data, from: me, name: name });
@@ -121,7 +128,7 @@ function App() {
     const answerCall = () => {
         setCallAccepted(true);
         setConnectionStatus("Connecting...");
-        const peer = new Peer({ initiator: false, trickle: false });
+        const peer = new Peer({ initiator: false, trickle: false, config: peerConfig });
 
         peer.on("signal", (data) => {
             socket.emit("answerCall", { signal: data, to: caller });
